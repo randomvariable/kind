@@ -19,10 +19,13 @@ package cluster
 
 import (
 	"io"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	yaml "sigs.k8s.io/yaml"
 
+	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/cmd"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -36,6 +39,7 @@ type flagpole struct {
 	Name       string
 	Config     string
 	ImageName  string
+	GPU        string
 	Retain     bool
 	Wait       time.Duration
 	Kubeconfig string
@@ -91,6 +95,12 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		"",
 		"sets kubeconfig path instead of $KUBECONFIG or $HOME/.kube/config",
 	)
+	cmd.Flags().StringVar(
+		&flags.GPU,
+		"gpu",
+		"",
+		`enable GPU passthrough with the given vendor type (e.g. "nvidia")`,
+	)
 	return cmd
 }
 
@@ -100,8 +110,8 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 		runtime.GetDefault(logger),
 	)
 
-	// handle config flag, we might need to read from stdin
-	withConfig, err := configOption(flags.Config, streams.In)
+	// handle config flag, applying --gpu overlay if set
+	withConfig, err := configOption(flags.Config, flags.GPU, streams.In)
 	if err != nil {
 		return err
 	}
@@ -124,16 +134,62 @@ func runE(logger log.Logger, streams cmd.IOStreams, flags *flagpole) error {
 }
 
 // configOption converts the raw --config flag value to a cluster creation
-// option matching it. it will read from stdin if the flag value is `-`
-func configOption(rawConfigFlag string, stdin io.Reader) (cluster.CreateOption, error) {
-	// if not - then we are using a real file
-	if rawConfigFlag != "-" {
+// option matching it. it will read from stdin if the flag value is `-`.
+// If gpuType is non-empty, it patches the loaded config with GPU settings.
+func configOption(rawConfigFlag string, gpuType string, stdin io.Reader) (cluster.CreateOption, error) {
+	// If no GPU flag, use the simple path (preserves existing behavior exactly)
+	if gpuType == "" {
+		if rawConfigFlag == "-" {
+			raw, err := io.ReadAll(stdin)
+			if err != nil {
+				return nil, errors.Wrap(err, "error reading config from stdin")
+			}
+			return cluster.CreateWithRawConfig(raw), nil
+		}
 		return cluster.CreateWithConfigFile(rawConfigFlag), nil
 	}
-	// otherwise read from stdin
-	raw, err := io.ReadAll(stdin)
+
+	// GPU flag is set: load config as v1alpha4, patch GPU, use V1Alpha4Config
+	cfg, err := loadV1Alpha4Config(rawConfigFlag, stdin)
 	if err != nil {
-		return nil, errors.Wrap(err, "error reading config from stdin")
+		return nil, err
 	}
-	return cluster.CreateWithRawConfig(raw), nil
+
+	// Apply --gpu flag if config doesn't already have GPU set
+	if cfg.GPU == nil {
+		cfg.GPU = &v1alpha4.GPUConfiguration{
+			Type: v1alpha4.GPUType(gpuType),
+			Parameters: map[string]string{
+				"replicas": "4",
+			},
+		}
+	}
+
+	return cluster.CreateWithV1Alpha4Config(cfg), nil
+}
+
+// loadV1Alpha4Config reads and parses a kind config file as a v1alpha4.Cluster.
+// If rawConfigFlag is empty, returns an empty Cluster (will get defaults).
+// If rawConfigFlag is "-", reads from stdin.
+func loadV1Alpha4Config(rawConfigFlag string, stdin io.Reader) (*v1alpha4.Cluster, error) {
+	cfg := &v1alpha4.Cluster{}
+
+	var raw []byte
+	var err error
+	switch {
+	case rawConfigFlag == "":
+		return cfg, nil
+	case rawConfigFlag == "-":
+		raw, err = io.ReadAll(stdin)
+	default:
+		raw, err = os.ReadFile(rawConfigFlag)
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading config")
+	}
+
+	if err := yaml.Unmarshal(raw, cfg); err != nil {
+		return nil, errors.Wrap(err, "unable to decode config")
+	}
+	return cfg, nil
 }

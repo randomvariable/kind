@@ -40,6 +40,14 @@ func Convertv1alpha4(in *v1alpha4.Cluster) *Cluster {
 
 	convertv1alpha4Networking(&in.Networking, &out.Networking)
 
+	if in.GPU != nil {
+		out.GPU = &GPUConfiguration{
+			Type:       string(in.GPU.Type),
+			Devices:    in.GPU.Devices,
+			Parameters: in.GPU.Parameters,
+		}
+	}
+
 	for i := range in.KubeadmConfigPatchesJSON6902 {
 		convertv1alpha4PatchJSON6902(&in.KubeadmConfigPatchesJSON6902[i], &out.KubeadmConfigPatchesJSON6902[i])
 	}

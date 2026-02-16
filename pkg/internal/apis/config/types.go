@@ -39,6 +39,10 @@ type Cluster struct {
 	// Networking contains cluster wide network settings
 	Networking Networking
 
+	// GPU configures GPU passthrough for the cluster.
+	// This field only applies to the docker provider.
+	GPU *GPUConfiguration
+
 	// FeatureGates contains a map of Kubernetes feature gates to whether they
 	// are enabled. The feature gates specified here are passed to all Kubernetes components as flags or in config.
 	//
@@ -107,6 +111,17 @@ type Node struct {
 	// KubeadmConfigPatchesJSON6902 are applied to the generated kubeadm config
 	// as patchesJson6902 to `kustomize build`
 	KubeadmConfigPatchesJSON6902 []PatchJSON6902
+}
+
+// GPUConfiguration configures GPU passthrough for a kind cluster.
+type GPUConfiguration struct {
+	// Type is the GPU vendor type (e.g. "nvidia").
+	Type string
+	// Devices specifies which GPUs to pass through (e.g. "all", "0,1").
+	// Defaults to "all".
+	Devices string
+	// Parameters are vendor-specific key-value configuration parameters.
+	Parameters map[string]string
 }
 
 // NodeRole defines possible role for nodes in a Kubernetes cluster managed by `kind`

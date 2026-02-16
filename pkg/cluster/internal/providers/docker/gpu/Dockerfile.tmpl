@@ -1,0 +1,72 @@
+# syntax=docker/dockerfile:1.4
+# Custom kind node image with NVIDIA GPU support
+# Built by kind during cluster creation when GPU configuration is present.
+#
+# Build with BuildKit:
+#   DOCKER_BUILDKIT=1 docker build --build-arg BASE_IMAGE=kindest/node:v1.32.2 -t kindest/node-gpu:v1.32.2 .
+
+# Global ARG must precede all FROM instructions so it is visible to each stage.
+ARG BASE_IMAGE={{.BaseImage}}
+
+# Crane for pulling OCI images without a Docker daemon
+FROM gcr.io/go-containerregistry/crane:latest AS crane
+
+FROM ${BASE_IMAGE}
+
+# Install nvidia-container-toolkit with apt cache mount for faster rebuilds
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt-get update && \
+  apt-get install -y --no-install-recommends \
+  curl \
+  gnupg \
+  ca-certificates && \
+  curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+  gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
+  curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  tee /etc/apt/sources.list.d/nvidia-container-toolkit.list && \
+  apt-get update && \
+  apt-get install -y --no-install-recommends nvidia-container-toolkit nvidia-container-toolkit-base libnvidia-container1 libnvidia-container-tools  && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+# Register WSL2 NVIDIA driver library path for ldconfig. On native Linux this
+# directory won't exist so ldconfig ignores it. The cache is rebuilt at runtime
+# after the host mounts are in place.
+RUN echo "/usr/lib/wsl/lib" > /etc/ld.so.conf.d/wsl-nvidia.conf
+
+# Install NVIDIA GPU setup as a systemd oneshot service.
+# Runs at node boot to mount debugfs/tracefs for profiling tools.
+# Must run after containerd is ready and before kubelet starts.
+COPY configure-nvidia-cdi.sh /usr/local/bin/configure-nvidia-cdi.sh
+COPY <<'EOF' /etc/systemd/system/configure-nvidia-cdi.service
+[Unit]
+Description=Configure NVIDIA CDI for GPU support
+After=containerd.service
+Before=kubelet.service
+ConditionPathExists=/usr/bin/nvidia-ctk
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/configure-nvidia-cdi.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+RUN chmod +x /usr/local/bin/configure-nvidia-cdi.sh && \
+    mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    ln -sf /etc/systemd/system/configure-nvidia-cdi.service \
+           /etc/systemd/system/multi-user.target.wants/configure-nvidia-cdi.service
+
+# Pre-load NVIDIA device plugin image so it is available offline after
+# cluster creation. The tar is imported into containerd via ctr on first boot.
+COPY --from=crane /ko-app/crane /tmp/crane
+RUN mkdir -p /opt/gpu-images && \
+  /tmp/crane pull --platform {{.Platform}} {{.DevicePluginImage}} /opt/gpu-images/device-plugin.tar && \
+  rm /tmp/crane
+
+# Labels for identification
+LABEL maintainer="kind"
+LABEL description="kindest/node with NVIDIA GPU support"

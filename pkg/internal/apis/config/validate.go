@@ -73,6 +73,13 @@ func (c *Cluster) Validate() error {
 		errs = append(errs, errors.Errorf("invalid kubeProxyMode: %s", c.Networking.KubeProxyMode))
 	}
 
+	// validate GPU configuration
+	if c.GPU != nil {
+		if c.GPU.Type != "nvidia" {
+			errs = append(errs, errors.Errorf("unsupported GPU type %q, only \"nvidia\" is supported", c.GPU.Type))
+		}
+	}
+
 	// validate nodes
 	numByRole := make(map[NodeRole]int32)
 	// All nodes in the config should be valid

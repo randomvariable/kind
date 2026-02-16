@@ -35,6 +35,11 @@ type Cluster struct {
 	// Networking contains cluster wide network settings
 	Networking Networking `yaml:"networking,omitempty" json:"networking,omitempty"`
 
+	// GPU configures GPU passthrough for the cluster.
+	// Currently only NVIDIA GPUs are supported via the NVIDIA Container Toolkit.
+	// This field only applies to the docker provider.
+	GPU *GPUConfiguration `yaml:"gpu,omitempty" json:"gpu,omitempty"`
+
 	// FeatureGates contains a map of Kubernetes feature gates to whether they
 	// are enabled. The feature gates specified here are passed to all Kubernetes components as flags or in config.
 	//
@@ -84,6 +89,11 @@ type Cluster struct {
 	// These should be YAML or JSON formatting RFC 6902 JSON patches
 	// NOTE: These are not currently version-aware.
 	ContainerdConfigPatchesJSON6902 []string `yaml:"containerdConfigPatchesJSON6902,omitempty" json:"containerdConfigPatchesJSON6902,omitempty"`
+
+	// Mirrors configures containerd registry mirrors for all nodes.
+	// Each entry creates a hosts.toml file under /etc/containerd/certs.d/{registry}/
+	// on every node. When set, a containerd config_path patch is auto-injected.
+	Mirrors []MirrorConfiguration `yaml:"mirrors,omitempty" json:"mirrors,omitempty"`
 }
 
 // TypeMeta partially copies apimachinery/pkg/apis/meta/v1.TypeMeta
@@ -289,6 +299,53 @@ type PortMapping struct {
 	ListenAddress string `yaml:"listenAddress,omitempty" json:"listenAddress,omitempty"`
 	// Protocol (TCP/UDP/SCTP)
 	Protocol PortMappingProtocol `yaml:"protocol,omitempty" json:"protocol,omitempty"`
+}
+
+// GPUType defines the GPU vendor type.
+type GPUType string
+
+const (
+	// GPUTypeNVIDIA configures NVIDIA GPU support via the NVIDIA Container Toolkit.
+	GPUTypeNVIDIA GPUType = "nvidia"
+)
+
+// GPUConfiguration configures GPU passthrough for a kind cluster.
+type GPUConfiguration struct {
+	// Type is the GPU vendor type. Currently only "nvidia" is supported.
+	Type GPUType `yaml:"type" json:"type"`
+	// Devices specifies which GPUs to pass through to the containers.
+	// This maps to the docker --gpus flag value (e.g. "all", "0,1", "device=GPU-xxxx").
+	// Defaults to "all" when not set.
+	Devices string `yaml:"devices,omitempty" json:"devices,omitempty"`
+	// Parameters are vendor-specific key-value configuration parameters.
+	// For NVIDIA, supported keys include "replicas" for time-slicing.
+	Parameters map[string]string `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+}
+
+// MirrorConfiguration configures a containerd registry mirror.
+type MirrorConfiguration struct {
+	// Registry is the original registry to mirror (e.g. "docker.io").
+	Registry string `yaml:"registry" json:"registry"`
+	// Endpoints are the mirror endpoint configurations, tried in order.
+	Endpoints []MirrorEndpoint `yaml:"endpoints" json:"endpoints"`
+}
+
+// MirrorEndpoint represents a containerd registry host configuration.
+type MirrorEndpoint struct {
+	// Server is the mirror host URL (e.g. "https://harbor.example.com/docker").
+	Server string `yaml:"server" json:"server"`
+	// Capabilities are the host capabilities: "pull", "resolve", "push".
+	Capabilities []string `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	// CACert is base64-encoded PEM CA certificate data for the endpoint.
+	CACert string `yaml:"caCert,omitempty" json:"caCert,omitempty"`
+	// SkipVerify skips TLS certificate verification.
+	SkipVerify bool `yaml:"skipVerify,omitempty" json:"skipVerify,omitempty"`
+	// Header contains additional HTTP headers to send with requests.
+	Header map[string]string `yaml:"header,omitempty" json:"header,omitempty"`
+	// OverridePath indicates the API root endpoint is defined in the URL path.
+	OverridePath bool `yaml:"overridePath,omitempty" json:"overridePath,omitempty"`
+	// DialTimeout is the connection timeout (e.g. "30s").
+	DialTimeout string `yaml:"dialTimeout,omitempty" json:"dialTimeout,omitempty"`
 }
 
 // MountPropagation represents an "enum" for mount propagation options,

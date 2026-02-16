@@ -32,6 +32,7 @@ import (
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers"
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers/common"
+	"sigs.k8s.io/kind/pkg/cluster/internal/providers/docker/gpu"
 	"sigs.k8s.io/kind/pkg/cluster/nodeutils"
 	"sigs.k8s.io/kind/pkg/internal/apis/config"
 	"sigs.k8s.io/kind/pkg/internal/cli"
@@ -65,6 +66,13 @@ func (p *provider) Provision(status *cli.Status, cfg *config.Cluster) (err error
 	// ensure node images are pulled before actually provisioning
 	if err := ensureNodeImages(p.logger, status, cfg); err != nil {
 		return err
+	}
+
+	// build custom GPU node image if GPU is configured
+	if cfg.GPU != nil {
+		if err := gpu.BuildNodeImage(p.logger, status, cfg); err != nil {
+			return err
+		}
 	}
 
 	// ensure the pre-requisite network exists

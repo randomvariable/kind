@@ -90,7 +90,23 @@ func SetDefaultsCluster(obj *Cluster) {
 	if obj.Networking.KubeProxyMode == "" {
 		obj.Networking.KubeProxyMode = IPTablesProxyMode
 	}
+
+	// auto-inject nvidia containerd runtime patch when GPU is configured
+	if obj.GPU != nil && obj.GPU.Type == "nvidia" {
+		obj.ContainerdConfigPatches = append(
+			obj.ContainerdConfigPatches,
+			nvidiaContainerdPatch,
+		)
+	}
 }
+
+// nvidiaContainerdPatch is a containerd config TOML patch that registers the
+// NVIDIA container runtime as an additional (non-default) runtime. Workload
+// pods opt in via a RuntimeClass.
+const nvidiaContainerdPatch = `[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
+  runtime_type = "io.containerd.runc.v2"
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
+  BinaryName = "nvidia-container-runtime"`
 
 // SetDefaultsNode sets uninitialized fields to their default value.
 func SetDefaultsNode(obj *Node) {

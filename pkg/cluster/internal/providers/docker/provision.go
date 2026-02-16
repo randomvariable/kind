@@ -174,6 +174,15 @@ func commonArgs(cluster string, cfg *config.Cluster, networkName string, nodeNam
 		"--cgroupns=private",
 	}
 
+	// enable GPU passthrough if configured
+	if cfg.GPU != nil {
+		devices := cfg.GPU.Devices
+		if devices == "" {
+			devices = "all"
+		}
+		args = append(args, "--gpus="+devices)
+	}
+
 	// enable IPv6 if necessary
 	if config.ClusterHasIPv6(cfg) {
 		args = append(args, "--sysctl=net.ipv6.conf.all.disable_ipv6=0", "--sysctl=net.ipv6.conf.all.forwarding=1")
