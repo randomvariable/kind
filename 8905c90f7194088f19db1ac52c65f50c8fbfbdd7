@@ -1,0 +1,71 @@
+pkg/apis/config/v1alpha4/types.go
+  d1fb4e2c95c6885b 316-322
+pkg/internal/apis/config/default.go
+  d1fb4e2c95c6885b 93-100,103-109
+pkg/cluster/createoption.go
+  d1fb4e2c95c6885b 127-136
+pkg/cluster/internal/providers/docker/gpu/nvidia-device-plugin.yaml
+  d1fb4e2c95c6885b 1-80
+pkg/cluster/internal/providers/docker/gpu/gpu.go
+  d1fb4e2c95c6885b 1-50
+pkg/cluster/internal/providers/docker/gpu/configure-nvidia-cdi.sh
+  d1fb4e2c95c6885b 1-124
+pkg/cluster/internal/providers/docker/provision.go
+  d1fb4e2c95c6885b 177-183
+pkg/cluster/internal/create/actions/installgpu/gpu.go
+  d1fb4e2c95c6885b 1-157
+pkg/apis/config/v1alpha4/zz_generated.deepcopy.go
+  d1fb4e2c95c6885b 36-39,75-81
+pkg/cluster/internal/providers/docker/provision_test.go
+  d1fb4e2c95c6885b 37-40,42,47-65,72,76-80
+  f72d47994a0bfda0 1-36,41,43-46,66-71,73-75,81-82
+pkg/cluster/internal/providers/docker/gpu/image.go
+  d1fb4e2c95c6885b 1-174
+pkg/cluster/internal/providers/docker/gpu/Dockerfile.tmpl
+  d1fb4e2c95c6885b 1-72
+pkg/internal/apis/config/validate.go
+  d1fb4e2c95c6885b 76-82
+pkg/cluster/internal/create/create.go
+  d1fb4e2c95c6885b 37,58-60,133,241-250
+pkg/internal/apis/config/types.go
+  d1fb4e2c95c6885b 42-45,116-126
+pkg/internal/apis/config/convert_v1alpha4.go
+  d1fb4e2c95c6885b 43-50
+pkg/cluster/internal/providers/docker/provider.go
+  d1fb4e2c95c6885b 35,71-77
+pkg/cmd/kind/create/cluster/createcluster.go
+  d1fb4e2c95c6885b 39,95-100,121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.3",
+  "base_commit_sha": "8905c90f7194088f19db1ac52c65f50c8fbfbdd7",
+  "prompts": {
+    "d1fb4e2c95c6885b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a1863321-a789-44d5-ad5e-349b3aed2b21",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Naadir Jeewa <naadir@randomvariable.co.uk>",
+      "messages": [],
+      "total_additions": 821,
+      "total_deletions": 36,
+      "accepted_lines": 800,
+      "overriden_lines": 0
+    },
+    "f72d47994a0bfda0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "acae0d35-bc20-4498-a6fe-f7b624c5f355",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Naadir Jeewa <naadir@randomvariable.co.uk>",
+      "messages": [],
+      "total_additions": 87,
+      "total_deletions": 12,
+      "accepted_lines": 65,
+      "overriden_lines": 0
+    }
+  }
+}
